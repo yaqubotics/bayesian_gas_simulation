@@ -1,0 +1,13 @@
+from implementation import *
+start, goal = (1, 5), (7, 8)
+came_from, cost_so_far,path = theta_star_search2(diagram4, start, goal)
+print(came_from.values())
+print(path)
+draw_grid(diagram4, width=3, point_to=came_from, start=start, goal=goal)
+print()
+draw_grid(diagram4, width=3, number=cost_so_far, start=start, goal=goal)
+print()
+draw_grid(diagram4, width=3, path=reconstruct_path(came_from, start=start, goal=goal))
+came_from, cost_so_far = a_star_search(diagram4, start, goal)
+print()
+draw_grid(diagram4, width=3, path=reconstruct_path(came_from, start=start, goal=goal))

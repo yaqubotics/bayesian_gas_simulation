@@ -1,0 +1,155 @@
+<!--
+################################################################
+#                                                              #
+#   ROS simmulation for Mobile Robot Olfaction             #
+#                                                #
+################################################################
+-->
+
+<launch>
+    <arg name="scenario" default="ITB_v1_0" />
+
+    ### ROBOT SIMULATION ###
+    <param name="use_sim_time" value="true" />
+
+    <node pkg="stage_ros" type="stageros" name="stage_ros" respawn="false" output="screen" args="$(find test_env)/$(arg scenario)/launch/ros/stage.world" >
+        <param name="laser_scan_topic" value="/laser_scan"/>
+        <param name="laser_frame_id" value="laser_stage" />
+        <param name="odom_topic" value="/odom"/>
+        <param name="odom_frame_id" value="odom" />    
+        <param name="disable_odometry" value="false" />    
+    </node>
+
+    ### URDF MODEL ###
+    <param name="robot_description" textfile="$(find test_env)/$(arg scenario)/launch/ros/giraff.urdf" />
+    <param name="use_gui" value="False"/>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
+
+    ### NAVIGATION ###
+    <node name="map_server" pkg="map_server" type="map_server" args="$(find test_env)/$(arg scenario)/occupancy.yaml" />  
+    <include file="$(find test_env)/$(arg scenario)/launch/ros/simbot_move_base.launch" />  
+    <node pkg="fake_localization" type="fake_localization" name="fake_localization" output="screen">      
+        <param name="odom_frame_id" value="odom"/>
+        <param name="global_frame_id" value="map"/>
+        <param name="base_frame_id" value="base_link"/>
+    </node>
+
+      <node name="rviz_player" pkg="rviz" type="rviz" args="-d $(find test_env)/$(arg scenario)/launch/ros/gaden.rviz"/>
+
+    <arg name="Test_x" default="24.0"/>      
+    <arg name="Test_y" default="19.0"/>   
+    <arg name="Test_z" default="0.5"/>  
+    <arg name="room_number" default="50"/>  
+    <arg name="initial_iteration" default="330"/>
+    <arg name="use_time_estimation" default="True"/>
+# ===================== GADEN =====================================
+
+    ### NODE environment (for RVIZ visualization) ###
+    <node pkg="gaden_environment" type="environment" name="environment_Test" output="screen">
+        <param name="verbose" value="true"/>
+        <param name="wait_preprocessing" value="false"/>          ### wait for the ok from gaden_preprocessing before running
+        <param name="fixed_frame" value="map"/>
+
+        # Plot CAD models (Collada format .dae)
+        <param name="number_of_CAD" value="3"/>
+        <rosparam subst_value="True">
+            CAD_0: package://test_env/$(arg scenario)/cad_models/HospitalV6_walls.dae
+            CAD_0_color: [0.92, 0.96, 0.96]
+            
+            CAD_1: package://test_env/$(arg scenario)/cad_models/HospitalV6_exhausts.dae
+            CAD_1_color: [0.60, 0.36, 0.0]
+            
+            CAD_2: package://test_env/$(arg scenario)/cad_models/HospitalV6_supplies.dae
+            CAD_2_color: [0.0, 0.8, 0.8]
+<!--            
+            CAD_3: package://test_env/$(arg scenario)/cad_models/HospitalV6_rand_display.dae
+            CAD_3_color: [0.9, 0.9, 0.9]
+-->
+        </rosparam>
+                
+        # Plot 3D OccupancyGridmap
+        <param name="occupancy3D_data" value="$(find test_env)/$(arg scenario)/OccupancyGrid3D.csv" />
+
+        # Plot gas sources
+        <param name="number_of_sources" value="1"/>
+        <rosparam subst_value="true">
+            source_0_position_x: $(arg Test_x)
+            source_0_position_y: $(arg Test_y)
+            source_0_position_z: $(arg Test_z)
+            source_0_scale: 0.2
+            source_0_color: [0.0, 1.0, 0.0]
+        </rosparam>
+    </node>
+
+    ### NODE PLAYER ###
+    #
+    <node pkg="gaden_player" type="gaden_player" name="gaden_player" output="screen">
+        <param name="verbose" value="false" />
+      <param name="player_freq" value="1" />         ###(Hz) Freq for loading the simulation log_files
+      <param name="initial_iteration" value="$(arg initial_iteration)" />
+      <param name="num_simulators" value="1" />      ### Number of simulations to load [1-inf] (useful for multiple sources and gases)
+    
+        # Data from the "filament_simulator" pkg. Multiple sources can be set here
+
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_Test_r_3_ts_1_nfs_100_ppm_5000_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_9.50_4.00_0.50_iteration_" /-->
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_r_04_C_ts_1_nfs_100_ppm_5000_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_11.90_3.30_0.50_iteration_" /-->
+
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_Test_ts_1_nfs_100_ppm_5000_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_29.00_2.00_0.50_iteration_" /-->
+        
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_r_7_BL_ts_1_nfs_100_ppm_5000_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_23.50_2.00_0.50_iteration_" /-->
+
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_r_12_C_ts_1_nfs_100_ppm_5000_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_45.50_3.60_0.50_iteration_" /-->
+
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_r_13_Q_ts_1_nfs_100_ppm_5000_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_48.50_3.30_0.50_iteration_" /-->
+
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_r_28_C_ts_1_nfs_100_ppm_5000_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_22.00_11.50_0.50_iteration_" /-->
+
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_Test_r_29_ts_1_nfs_130_ppm_6000_fis_20_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_24.00_12.00_0.50_iteration_" /-->   
+
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_r_37_UL_ts_1_nfs_100_ppm_5000_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_51.00_11.00_0.50_iteration_" /-->
+
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_r_39_UL_ts_1_nfs_100_ppm_5000_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_7.60_17.00_0.50_iteration_" /-->
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_Test_r_38_ts_1_nfs_60_ppm_2000_fis_15_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_1.00_14.50_2.00_iteration_" /-->
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_r_47_BL_ts_1_nfs_100_ppm_5000_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_48.40_12.40_0.50_iteration_" /-->
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_Test_r_47_ts_1_nfs_100_ppm_5000_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_49.00_13.00_0.50_iteration_" /-->
+
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_r_50_UR_ts_1_nfs_100_ppm_5000_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_26.00_21.00_0.50_iteration_" /-->
+
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_Test_r_50_ts_1_nfs_80_ppm_3000_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_26.00_20.00_1.50_iteration_" /-->
+        <param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_ts_1_nfs_100_ppm_5000_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_62/FilamentSimulation_gasType_10_sourcePosition_100.00_100.00_1.00_iteration_" />
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_Test_r_50_ts_1_nfs_5_ppm_250_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_24.00_19.00_0.50_iteration_" /-->
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_Test_r_50_ts_1_nfs_25_ppm_1250_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_24.00_19.00_0.50_iteration_" /-->
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_Test_r_50_ts_1_nfs_50_ppm_2500_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_24.00_19.00_0.50_iteration_" /-->
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_Test_r_50_ts_1_nfs_75_ppm_3750_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_24.00_19.00_0.50_iteration_" /-->
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_Test_r_50_ts_1_nfs_125_ppm_6250_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_24.00_19.00_0.50_iteration_" /-->
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_Test_r_50_ts_1_nfs_150_ppm_7500_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_24.00_19.00_0.50_iteration_" /-->
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_Test_r_50_ts_1_nfs_175_ppm_8750_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_24.00_19.00_0.50_iteration_" /-->
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_Test_r_50_ts_1_nfs_200_ppm_10000_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_24.00_19.00_0.50_iteration_" /-->
+        <!--param name="simulation_data_0" value="$(find test_env)/$(arg scenario)/gas_simulations_Test_r_50_ts_1_nfs_250_ppm_12500_fis_10_fgg_0.16_fnss_0.1_fnsb_0.3_st_1202/FilamentSimulation_gasType_10_sourcePosition_24.00_19.00_0.50_iteration_" /-->
+
+        # Loop options        
+        <param name="allow_looping" value="false" />
+        <param name="loop_from_iteration" value="0" />
+        <param name="loop_to_iteration" value="198" />
+        
+    </node>
+  
+  ### SENSOR SIMULATION ###
+  
+  # SENSOR MODELS: 
+  # MOX: TGS2620=0, TGS2600=1, TGS2611=2
+  # PID: MiniRaeLite=30
+  # Sensors are simulated onboad the robot
+  
+  <group ns="PID">
+    <node pkg="simulated_gas_sensor" type="simulated_gas_sensor" name="fake_pid" output="screen">
+        <param name="/sensor_model" value="30" />
+        <param name="/sensor_frame" value="pid_frame" />
+        <param name="/fixed_frame" value="map"/>
+        <param name="/noise_std" value="0.1"/>
+    </node>
+  </group>
+  <node pkg="tf" type="static_transform_publisher" name="pid_broadcaster" args="0.0 0.0 0.5 0 0 0 base_link pid_frame 100" />  
+  
+  
+</launch>

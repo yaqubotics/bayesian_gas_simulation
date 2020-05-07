@@ -1,0 +1,23 @@
+<!-- Mission file for GADEN preprocessing
+    ROS - KINETIC
+-->
+
+<launch>
+    <arg name="scenario" default="ITB_v1_0" />
+      
+        ### RVIZ ###
+    <node pkg="map_server" type="map_server" name="map_server" args="$(find test_env)/$(arg scenario)/occupancy.yaml" />
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find test_env)/$(arg scenario)/launch/ros/gaden.rviz"/>
+    <node pkg="gaden_preprocessing_voronoi" type="preprocessing_voronoi" name="preprocessing_voronoi" output="screen" >
+     
+        #Cell size
+        <param name="cell_size" value="2"/>    
+        <param name="num_of_region" value="150"/>    
+        <param name="min_distance_point" value="10"/>    
+        
+        #Where to write the output files
+        <param name="output_path" value="$(find test_env)/$(arg scenario)" />
+    </node>
+
+
+</launch>

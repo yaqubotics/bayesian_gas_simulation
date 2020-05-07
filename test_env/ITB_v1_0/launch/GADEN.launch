@@ -1,0 +1,118 @@
+<!-- Mission file for GADEN filament simulator 
+    ROS - KINETIC
+-->
+
+<launch>
+    
+    <arg name="scenario" default="ITB_v1_0" />
+    <arg name="time_step" default="1" />
+    <arg name="num_filaments_sec" default="50" />            ### Num of filaments released each second
+    <arg name="ppm_filament_center" default="500"/>           ### [ppm] Gas concentration at the center of the 3D gaussian (filament)
+    <arg name="filament_initial_std" default="500"/>          ### [cm] Sigma of the filament at t=0-> 3DGaussian shape
+    <arg name="filament_growth_gamma" default="0.16"/>         ### [cm²/s] Growth ratio of the filament_std
+    <arg name="filament_noise_std_small" default="0.1"/>         ###  [m] Range of the white noise added on each iteration
+    <arg name="filament_noise_std_big" default="0.3"/>         ###  [m] Range of the white noise added on each iteration
+    <arg name="sim_time" default="62"/>      
+    
+    ### NODE environment (for RVIZ visualization) ###
+    <node pkg="gaden_environment" type="environment" name="environment" output="screen">
+        <param name="verbose" value="true"/>
+        <param name="wait_preprocessing" value="false"/>          ### wait for the ok from gaden_preprocessing before running
+        <param name="fixed_frame" value="map"/>
+
+        # Plot CAD models (Collada format .dae)
+        <param name="number_of_CAD" value="1"/>
+        <rosparam subst_value="True">
+            CAD_0: package://test_env/$(arg scenario)/cad_models/itb_osm_v2_wall.dae
+            CAD_0_color: [0.92, 0.96, 0.96]
+            <!--
+            CAD_1: package://test_env/$(arg scenario)/cad_models/HospitalV6_exhausts.dae
+            CAD_1_color: [0.60, 0.36, 0.0]
+            
+            CAD_2: package://test_env/$(arg scenario)/cad_models/HospitalV6_supplies.dae
+            CAD_2_color: [0.0, 0.8, 0.8]
+            
+            
+            CAD_3: package://test_env/$(arg scenario)/cad_models/HospitalV6_rand_display.dae
+            CAD_3_color: [0.0, 0.8, 0.0]
+            
+            CAD_3: package://test_env/$(arg scenario)/cad_models/MAPIRlab_doors.dae
+            CAD_3_color: [0.96, 0.17, 0.3]
+            
+            CAD_4: package://test_env/$(arg scenario)/cad_models/MAPIRlab_windows.dae
+            CAD_4_color: [0.7, 0.7, 0.9]-->
+        </rosparam>
+                
+        # Plot 3D OccupancyGridmap
+        <param name="occupancy3D_data" value="$(find test_env)/$(arg scenario)/OccupancyGrid3D.csv" />
+
+        # Plot gas sources
+        <param name="number_of_sources" value="1"/>
+        <rosparam>
+
+            source_0_position_x: 200
+            source_0_position_y: 200
+            source_0_position_z: 1
+            source_0_scale: 0.2
+            source_0_color: [0.0, 1.0, 0.0]
+        </rosparam>
+    </node>
+
+    ### Filament Simulator 01ms###
+    <node pkg="gaden_filament_simulator" type="filament_simulator" name="filament_simulator_00" output="screen">
+        <param name="verbose" value="false" />
+        <param name="debug" value="true"/>
+        <param name="wait_preprocessing" value="false"/>         ### wait for the ok from preprocessing before starting the simulation
+        <param name="sim_time" value="$(arg sim_time)" />                    ### [sec] Total time of the gas dispersion simulation
+        <param name="time_step" value="$(arg time_step)" />                   ### [sec] Time increment between snapshots. Set aprox = cell_size/max_wind_speed.
+        <param name="num_filaments_sec" value="$(arg num_filaments_sec)" />            ### Num of filaments released each second
+        <param name="variable_rate" value="false" />              ### If true the number of released filaments would be random(0,numFilaments_sec)
+        <param name="ppm_filament_center" value="$(arg ppm_filament_center)"/>           ### [ppm] Gas concentration at the center of the 3D gaussian (filament)
+        <param name="filament_initial_std" value="$(arg filament_initial_std)"/>          ### [cm] Sigma of the filament at t=0-> 3DGaussian shape
+        <param name="filament_growth_gamma" value="$(arg filament_growth_gamma)"/>         ### [cm²/s] Growth ratio of the filament_std
+        <param name="filament_noise_std_small" value="$(arg filament_noise_std_small)"/>          ### [m] Range of the white noise added on each iteration
+        <param name="filament_noise_std_big" value="$(arg filament_noise_std_big)"/>          ### [m] Range of the white noise added on each iteration
+        <param name="gas_type" value="10" />                      ### 0=Ethanol, 1=Methane, 2=Hydrogen, 6=Acetone
+        <param name="temperature" value="298"/>                  ### [Kelvins]
+        <param name="pressure" value="1"/>                       ### [Atm]
+        <param name="concentration_unit_choice" value="1"/>      ### 0=molecules/cm3, 1=ppm (when ppm is used, set temp and pressure accordingly)                               
+        <param name="filament_color_r" value="0.0"/>
+        <param name="filament_color_g" value="1.0"/>
+        <param name="filament_color_b" value="0.0"/>
+
+        # In the occupancyGrid.csv file we set: cell_size, num_cells, etc. which come from the CFD wind simulation
+        <param name="occupancy3D_data" value="$(find test_env)/$(arg scenario)/OccupancyGrid3D.csv" />
+        <param name="random_flag" value="false" />
+        <param name="occupancy3D_rand_data" value="$(find test_env)/$(arg scenario)/OccupancyRandGrid3D.csv" />
+        <param name="fixed_frame" value="map"/>
+        
+        # WindFlow data (from CFD)
+        <param name="wind_data" value="$(find test_env)/$(arg scenario)/wind_simulations/W1/wind_at_cell_centers_" />
+        <param name="wind_time_step" value="1" />                ### (sec) time 
+
+        increment between Wind snapshots
+        # Loop options
+        <param name="/allow_looping" value="true" />
+        <param name="/loop_from_step" value="0" />
+        <param name="/loop_to_step" value="24" />
+        
+        # Location of the release point!
+        <param name="source_position_x" value="200"/>            ### (m)
+        <param name="source_position_y" value="200"/>            ### (m)
+        <param name="source_position_z" value="1"/>            ### (m)
+        
+        <param name="save_results" value="1" />                  #1=true, 0=false
+        <param name="results_time_step" value="1.0" />           #(sec) Time increment between saving state to file
+        <param name="results_min_time" value="0.0" />            #(sec) Time to start saving results to file
+        <param name="results_location" value="$(find test_env)/$(arg scenario)/gas_simulations_ts_$(arg time_step)_nfs_$(arg num_filaments_sec)_ppm_$(arg ppm_filament_center)_fis_$(arg filament_initial_std)_fgg_$(arg filament_growth_gamma)_fnss_$(arg filament_noise_std_small)_fnsb_$(arg filament_noise_std_big)_st_$(arg sim_time)" />
+        <param name="csv_file_name" value="$(find test_env)/$(arg scenario)/csv_file/pdf_ts_$(arg time_step)_nfs_$(arg num_filaments_sec)_ppm_$(arg ppm_filament_center)_fis_$(arg filament_initial_std)_fgg_$(arg filament_growth_gamma)_fnss_$(arg filament_noise_std_small)_fnsb_$(arg filament_noise_std_big)_st_$(arg sim_time)" />
+        <param name="disperse_time" value="$(arg sim_time)" />
+        <param name="save_csv_every_iteration" value="1" />
+    </node>
+    # MAP SERVER
+    <node pkg="map_server" type="map_server" name="map_server" args="$(find test_env)/$(arg scenario)/occupancy.yaml" />
+  
+    ### RVIZ ###
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find test_env)/$(arg scenario)/launch/ros/gaden.rviz"/>
+ 
+</launch>

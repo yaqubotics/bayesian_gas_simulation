@@ -1,0 +1,16 @@
+<!-- Mission file for GADEN preprocessing
+    ROS - KINETIC
+-->
+
+<launch>
+    <arg name="scenario" default="ITB_v1_0" />
+      
+  
+    <node pkg="gaden_preprocessing_voronoi" type="preprocessing_save_distance" name="preprocessing_save_distance" output="screen" > 
+        
+        #Where to write the output files
+        <param name="output_path" value="$(find test_env)/$(arg scenario)" />
+    </node>
+
+    <node pkg="map_server" type="map_server" name="map_server" args="$(find test_env)/$(arg scenario)/occupancy.yaml" />
+</launch>
