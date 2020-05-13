@@ -28,6 +28,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <bits/stdc++.h>
 
+#include "nav_msgs/OccupancyGrid.h"
+
 using namespace std;
 using namespace cv;
 
@@ -58,6 +60,7 @@ public:
     //methods
     void configure_environment();
     void load_data_from_logfile(int sim_iteration);
+    void read_csv_file(int sim_iteration);
     void get_gas_concentration(float x, float y, float z, std::string &gas_name, double &gas_conc);
     void get_wind_value(float x, float y, float z, double &u, double &v, double &w);
     void get_concentration_as_markers(visualization_msgs::Marker &mkr_points);
@@ -78,6 +81,12 @@ std::vector<std::string>        srv_response_gas_types;
 std::vector<double>             srv_response_gas_concs;
 int                             initial_iteration, loop_from_iteration, loop_to_iteration;
 bool                            allow_looping;
+std::string                     occupancy3D_data;
+
+int map_width;
+int map_height;
+std::vector<std::vector<int>> map_data;
+bool map_received = false;
 
 //Visualization
 ros::Publisher                  marker_pub;
@@ -91,6 +100,7 @@ std_msgs::Int32                 iteration_truth;                  //We will crea
 void loadNodeParameters(ros::NodeHandle private_nh);
 void init_all_simulation_instances();
 void load_all_data_from_logfiles(int sim_iteration);
+void read_csv_files(int sim_iteration);
 void display_current_gas_distribution();
 
 

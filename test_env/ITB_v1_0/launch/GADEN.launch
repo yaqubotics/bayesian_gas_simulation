@@ -6,13 +6,13 @@
     
     <arg name="scenario" default="ITB_v1_0" />
     <arg name="time_step" default="1" />
-    <arg name="num_filaments_sec" default="50" />            ### Num of filaments released each second
-    <arg name="ppm_filament_center" default="500"/>           ### [ppm] Gas concentration at the center of the 3D gaussian (filament)
+    <arg name="num_filaments_sec" default="10" />            ### Num of filaments released each second
+    <arg name="ppm_filament_center" default="10"/>           ### [ppm] Gas concentration at the center of the 3D gaussian (filament)
     <arg name="filament_initial_std" default="500"/>          ### [cm] Sigma of the filament at t=0-> 3DGaussian shape
     <arg name="filament_growth_gamma" default="0.16"/>         ### [cm²/s] Growth ratio of the filament_std
     <arg name="filament_noise_std_small" default="0.1"/>         ###  [m] Range of the white noise added on each iteration
     <arg name="filament_noise_std_big" default="0.3"/>         ###  [m] Range of the white noise added on each iteration
-    <arg name="sim_time" default="62"/>      
+    <arg name="sim_time" default="1202"/>      
     
     ### NODE environment (for RVIZ visualization) ###
     <node pkg="gaden_environment" type="environment" name="environment" output="screen">
@@ -50,9 +50,9 @@
         <param name="number_of_sources" value="1"/>
         <rosparam>
 
-            source_0_position_x: 200
-            source_0_position_y: 200
-            source_0_position_z: 1
+            source_0_position_x: 117
+            source_0_position_y: 118
+            source_0_position_z: 0.5
             source_0_scale: 0.2
             source_0_color: [0.0, 1.0, 0.0]
         </rosparam>
@@ -61,7 +61,7 @@
     ### Filament Simulator 01ms###
     <node pkg="gaden_filament_simulator" type="filament_simulator" name="filament_simulator_00" output="screen">
         <param name="verbose" value="false" />
-        <param name="debug" value="true"/>
+        <param name="debug" value="false"/>
         <param name="wait_preprocessing" value="false"/>         ### wait for the ok from preprocessing before starting the simulation
         <param name="sim_time" value="$(arg sim_time)" />                    ### [sec] Total time of the gas dispersion simulation
         <param name="time_step" value="$(arg time_step)" />                   ### [sec] Time increment between snapshots. Set aprox = cell_size/max_wind_speed.
@@ -97,9 +97,9 @@
         <param name="/loop_to_step" value="24" />
         
         # Location of the release point!
-        <param name="source_position_x" value="200"/>            ### (m)
-        <param name="source_position_y" value="200"/>            ### (m)
-        <param name="source_position_z" value="1"/>            ### (m)
+        <param name="source_position_x" value="117"/>            ### (m)
+        <param name="source_position_y" value="118"/>            ### (m)
+        <param name="source_position_z" value="0.5"/>            ### (m)
         
         <param name="save_results" value="1" />                  #1=true, 0=false
         <param name="results_time_step" value="1.0" />           #(sec) Time increment between saving state to file
@@ -113,6 +113,6 @@
     <node pkg="map_server" type="map_server" name="map_server" args="$(find test_env)/$(arg scenario)/occupancy.yaml" />
   
     ### RVIZ ###
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find test_env)/$(arg scenario)/launch/ros/gaden.rviz"/>
+    <!--node name="rviz" pkg="rviz" type="rviz" args="-d $(find test_env)/$(arg scenario)/launch/ros/gaden.rviz"/-->
  
 </launch>

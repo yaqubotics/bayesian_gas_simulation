@@ -7,6 +7,32 @@
 
 #include "simulation_player.h"
 
+void map_cb(const nav_msgs::OccupancyGridConstPtr& msg)
+{
+    if(!map_received)
+    {
+        cout << msg->data[0] << "\n";
+        std_msgs::Header header = msg->header;
+        nav_msgs::MapMetaData info = msg->info;
+        ROS_INFO("Got map %d %d", info.width, info.height);
+        vector<vector<int>> local_map_data;
+        map_width = info.width;
+        map_height = info.height;
+        
+        for(int i=0;i<map_width;i++)
+        {
+            vector<int> temp_vector;
+            for(int j=0;j<map_height;j++)
+            {
+                temp_vector.push_back(msg->data[i+map_width*j]);
+            }
+            local_map_data.push_back(temp_vector);
+        }
+        map_data = local_map_data;
+        map_received = true;
+    }
+}
+
 //--------------- SERVICES CALLBACKS----------------------//
 bool get_gas_value_srv(gaden_player::GasPosition::Request  &req, gaden_player::GasPosition::Response &res)
 {
@@ -15,7 +41,7 @@ bool get_gas_value_srv(gaden_player::GasPosition::Request  &req, gaden_player::G
     //Get all gas concentrations and gas types (from all instances)
     for (int i=0;i<num_simulators; i++)
         player_instances[i].get_gas_concentration(req.x, req.y, req.z, srv_response_gas_types[i], srv_response_gas_concs[i]);
-
+    //std::cout << "get_gas_value_srv 1\n";
     //Return gas concentration for each gas_type.
     //If we have multiple instances with the same gas, then add their concentrations.
     std::map<std::string,double> mymap;
@@ -27,14 +53,17 @@ bool get_gas_value_srv(gaden_player::GasPosition::Request  &req, gaden_player::G
             mymap[srv_response_gas_types[i]] += srv_response_gas_concs[i];
     }
 
+    //std::cout << "get_gas_value_srv 2\n";
     //Configure Response
     res.gas_conc.clear();
     res.gas_type.clear();
+    //std::cout << "get_gas_value_srv 3\n";
     for (std::map<std::string,double>::iterator it=mymap.begin(); it!=mymap.end(); ++it)
     {
         res.gas_type.push_back(it->first);
         res.gas_conc.push_back(it->second);
     }
+    //std::cout << "get_gas_value_srv 4\n";
 
     return true;
 }
@@ -42,8 +71,10 @@ bool get_gas_value_srv(gaden_player::GasPosition::Request  &req, gaden_player::G
 
 bool get_wind_value_srv(gaden_player::WindPosition::Request  &req, gaden_player::WindPosition::Response &res)
 {
+    //std::cout<< "get wind 0\n";
     //Since the wind fields are identical among different instances, return just the information from instance[0]
     player_instances[0].get_wind_value(req.x, req.y, req.z, res.u, res.v, res.w);
+    //std::cout<< "get wind 1\n";
     return true;
 }
 
@@ -84,11 +115,15 @@ int main( int argc, char** argv )
     //Services offered
     ros::ServiceServer serviceGas = n.advertiseService("odor_value", get_gas_value_srv);
     ros::ServiceServer serviceWind = n.advertiseService("wind_value", get_wind_value_srv);
+    ros::Subscriber sub_map = n.subscribe("/map", 1, map_cb);
+
+    while(!map_received) ros::spinOnce();
 
     //Init variables        
     init_all_simulation_instances();
     ros::Time time_last_loaded_file = ros::Time::now();
     srand(time(NULL));// initialize random seed
+    ros::Duration(20).sleep();
 
     //Init Markers for RVIZ visualization
     mkr_gas_points.header.frame_id = "/map";
@@ -146,8 +181,10 @@ int main( int argc, char** argv )
     time_marker.color.g = 0.0f;
     time_marker.color.b = 0.0f;
     time_marker.color.a = 1.0;
+    std::cout << "Start Gaden Player\n";
     while (ros::ok())
     {        
+        //std::cout << "test\n";
         if( (ros::Time::now() - time_last_loaded_file).toSec() >= 1/player_freq )
         {
             //time_marker.id++;
@@ -159,12 +196,18 @@ int main( int argc, char** argv )
             iteration_truth_pub.publish(iteration_truth);
             //Read Gas and Wind data from log_files
             ros::Time time_begin_load = ros::Time::now();
-            load_all_data_from_logfiles(iteration_counter); //On the first time, we configure gas type, source pos, etc.
+            //load_all_data_from_logfiles(iteration_counter); //On the first time, we configure gas type, source pos, etc.
+            //std::cout << "Start reading csv\n";
+            read_csv_files(iteration_counter);
+            //std::cout << "Reading csv DONE\n";
+            
             ros::Time time_begin_display = ros::Time::now();
 
             //display_current_gas_distribution();    //Rviz visualization
             
+            //std::cout << "Display pdf gas distribution Start\n";
             player_instances[0].display_pdf_gas_distribution();
+            //std::cout << "Display pdf gas distribution Done\n";
             if(verbose)ROS_INFO("time load: %f s, display: %f s",(ros::Time::now()-time_begin_load).toSec(),(ros::Time::now()-time_begin_display).toSec());
             iteration_counter++;
 
@@ -179,12 +222,17 @@ int main( int argc, char** argv )
                }
             }
             time_last_loaded_file = ros::Time::now();
+            //std::cout << "End of iteration\n";
         }
 
         //Attend service request at max rate!
         //This allows sensors to have higher sampling rates than the simulation update
         ros::spinOnce();
+        //std::cout << "test 1\n";
+
         r.sleep();
+        //std::cout << "test 2\n";
+
     }
 }
 
@@ -225,6 +273,8 @@ void loadNodeParameters(ros::NodeHandle private_nh)
     private_nh.param<bool>("allow_looping", allow_looping, false);
     private_nh.param<int>("loop_from_iteration", loop_from_iteration, 1);
     private_nh.param<int>("loop_to_iteration", loop_to_iteration, 1);
+    private_nh.param<std::string>("occupancy3D_data", occupancy3D_data, "");
+
 }
 
 
@@ -262,6 +312,16 @@ void load_all_data_from_logfiles(int sim_iteration)
     }
 }
 
+void read_csv_files(int sim_iteration)
+{    
+    //Load corresponding data for each instance (i.e for every gas source)
+    for (int i=0;i<num_simulators;i++)
+    {
+        if (verbose)
+            ROS_INFO("[Player] Loading new data to instance %i (iteration %i)",i,sim_iteration);
+        player_instances[i].read_csv_file(sim_iteration);
+    }
+}
 
 //Display in RVIZ the gas distribution
 void display_current_gas_distribution()
@@ -288,82 +348,90 @@ void sim_obj::display_pdf_gas_distribution()
     mkr_pdf_gas_points.action = visualization_msgs::Marker::ADD;
     mkr_pdf_gas_points.type = visualization_msgs::Marker::POINTS;   //Marker type
     mkr_pdf_gas_points.id = 0;                                      //One marker with multiple points.
-    mkr_pdf_gas_points.scale.x = 0.2;//0.3;//0.1
-    mkr_pdf_gas_points.scale.y = 0.2;//0.3;//0.1
-    mkr_pdf_gas_points.scale.z = 0.2;//0.3;//0.1
+    mkr_pdf_gas_points.scale.x = environment_cell_size;//0.3;//0.1
+    mkr_pdf_gas_points.scale.y = environment_cell_size;//0.3;//0.1
+    mkr_pdf_gas_points.scale.z = 0.1;//0.3;//0.1
     mkr_pdf_gas_points.pose.orientation.w = 1.0;
     mkr_pdf_gas_points.points.clear();
     mkr_pdf_gas_points.colors.clear();
+    //std::cout << "display marker pdf\n";
+    //std::cout << environment_cells_x <<" "<< environment_cells_y <<" "<< environment_cells_z <<" "<< environment_cell_size <<" "<<env_min_x<<" "<<env_min_y<<" "<<std::endl;
     //std::cout << env_min_x << std::endl;
     //std::cout << env_min_y << std::endl;
     //float C_norm[environment_cells_x][environment_cells_y];
     float max = 0;
     float logbase = 100000;
+    int z=0; // sensor altitude
     for(int i=0;i<environment_cells_x;i++)
     {
         for(int j=0;j<environment_cells_y;j++)
         {
-            if(max < log(C[i][j][2]+1)/log(logbase))
-                max = log(C[i][j][2]+1)/log(logbase);
+            if(map_data[i][j] == 0)
+            {
+                if(max < log(C[i][j][z]+1)/log(logbase))
+                    max = log(C[i][j][z]+1)/log(logbase);
+            }
         }
     }
     for(int i=0;i<environment_cells_x;i++)
     {
         for(int j=0;j<environment_cells_y;j++)
         {
-            int zz;
-            zz = (int)ceil((0.5 - env_min_z)/environment_cell_size);
-    
-            //Get gas concentration from that cell
-            //yy = 111;
-            //std::cout << i << " " << j << std::endl;
-            //std::cout << xx << " " << yy << " " << zz << " " << environment_cell_size << " " << env_max_y << std::endl;
-            double gas_conc;
-
-            gas_conc = (log(C[i][j][2]+1)/log(logbase))/max;
-            if(C[i][j][2] == 0)
-                gas_conc = 0.0;
-
-            geometry_msgs::Point p; //Location of point
-            std_msgs::ColorRGBA color;  //Color of point
-
-            p.x = env_min_x + (i+0.5)*environment_cell_size; //+ ((rand()%100)/100.0f)*environment_cell_size;
-            p.y = env_min_y + (j+0.5)*environment_cell_size; //+ ((rand()%100)/100.0f)*environment_cell_size;
-            p.z = 0.0; //env_min_z + (zz+0.5)*environment_cell_size; //+ ((rand()%100)/100.0f)*environment_cell_size;;
-
-            // color map jet
-            if((gas_conc >= 0.75) && (gas_conc <= 1.0))
+            if(map_data[i][j] == 0)
             {
-                color.r = 1;
-                color.g = -4*gas_conc+4;
-                color.b = 0.0;
-                color.a = 1.0;
-                //std::cout << "gas value:" << gas_conc << p.x << p.y << std::endl; 
-            }
-            else if((gas_conc >= 0.5) && (gas_conc < 0.75))
-            {
-                color.r = 4*gas_conc-2;
-                color.g = 1;
-                color.b = 0;
-                color.a = 1.0;
-            }
-            else if((gas_conc >= 0.25) && (gas_conc < 0.5))
-            {
-                color.r = 0;
-                color.g = 1;
-                color.b = -4*gas_conc+2;
-                color.a = 1.0;
-            }
-            else
-            {
-                color.r = 0;
-                color.g = 4*gas_conc;
-                color.b = 1;
-                color.a = 1.0;
-            }
+                int zz;
+                zz = (int)ceil((0.5 - env_min_z)/environment_cell_size);
+        
+                //Get gas concentration from that cell
+                //yy = 111;
+                //std::cout << i << " " << j << std::endl;
+                //std::cout << xx << " " << yy << " " << zz << " " << environment_cell_size << " " << env_max_y << std::endl;
+                double gas_conc;
 
-            mkr_pdf_gas_points.points.push_back(p);
-            mkr_pdf_gas_points.colors.push_back(color);
+                gas_conc = (log(C[i][j][z]+1)/log(logbase))/max;
+                if(C[i][j][z] == 0)
+                    gas_conc = 0.0;
+                geometry_msgs::Point p; //Location of point
+                std_msgs::ColorRGBA color;  //Color of point
+
+                p.x = env_min_x + (i+0.5)*environment_cell_size; //+ ((rand()%100)/100.0f)*environment_cell_size;
+                p.y = env_min_y + (j+0.5)*environment_cell_size; //+ ((rand()%100)/100.0f)*environment_cell_size;
+                p.z = 0.0; //env_min_z + (zz+0.5)*environment_cell_size; //+ ((rand()%100)/100.0f)*environment_cell_size;;
+
+                // color map jet
+                if((gas_conc >= 0.75) && (gas_conc <= 1.0))
+                {
+                    color.r = 1;
+                    color.g = -4*gas_conc+4;
+                    color.b = 0.0;
+                    color.a = 1.0;
+                    //std::cout << "gas value:" << gas_conc << p.x << p.y << std::endl; 
+                }
+                else if((gas_conc >= 0.5) && (gas_conc < 0.75))
+                {
+                    color.r = 4*gas_conc-2;
+                    color.g = 1;
+                    color.b = 0;
+                    color.a = 1.0;
+                }
+                else if((gas_conc >= 0.25) && (gas_conc < 0.5))
+                {
+                    color.r = 0;
+                    color.g = 1;
+                    color.b = -4*gas_conc+2;
+                    color.a = 1.0;
+                }
+                else
+                {
+                    color.r = 0;
+                    color.g = 4*gas_conc;
+                    color.b = 1;
+                    color.a = 1.0;
+                }
+                mkr_pdf_gas_points.points.push_back(p);
+                mkr_pdf_gas_points.colors.push_back(color);
+                mkr_pdf_gas_points.id++;
+            }
         }
     }
     //Display particles
@@ -382,10 +450,86 @@ sim_obj::sim_obj(std::string filepath, bool load_wind_info)
     source_pos_x = source_pos_y = source_pos_z = 0.0; //m
     load_wind_data = load_wind_info;
     first_reading = true;
+
+    std::ifstream infile(occupancy3D_data.c_str());
+    std::string line;
+    //Line 1 (min values of environment)
+    std::getline(infile, line);
+    size_t pos = line.find(" ");
+    line.erase(0, pos+1);
+    pos = line.find(" ");
+    env_min_x = atof(line.substr(0, pos).c_str());
+    line.erase(0, pos+1);
+    pos = line.find(" ");
+    env_min_y = atof(line.substr(0, pos).c_str());
+    env_min_z = atof(line.substr(pos+1).c_str());
+
+
+    //Line 2 (max values of environment)
+    std::getline(infile, line);
+    pos = line.find(" ");
+    line.erase(0, pos+1);
+    pos = line.find(" ");
+    env_max_x = atof(line.substr(0, pos).c_str());
+    line.erase(0, pos+1);
+    pos = line.find(" ");
+    env_max_y = atof(line.substr(0, pos).c_str());
+    env_max_z = atof(line.substr(pos+1).c_str());
+
+    std::getline(infile, line);
+    pos = line.find(" ");
+    line.erase(0, pos+1);
+    pos = line.find(" ");
+    environment_cells_x = atoi(line.substr(0, pos).c_str());
+    line.erase(0, pos+1);
+    pos = line.find(" ");
+    environment_cells_y = atof(line.substr(0, pos).c_str());
+    environment_cells_z = atof(line.substr(pos+1).c_str());
+
+    std::getline(infile, line);
+    pos = line.find(" ");
+    environment_cell_size = atof(line.substr(pos+1).c_str());
+    //std::cout << environment_cells_x << " " << environment_cells_y << " " << environment_cells_z << std::endl;
+    configure_environment();
 }
 
 sim_obj::~sim_obj(){}
 
+void sim_obj::read_csv_file(int sim_iteration)
+{
+    
+    std::string line;
+    std::fstream fin;
+    std::string filename = boost::str( boost::format("%s%4i.csv") % simulation_filename.c_str() % sim_iteration);
+    std::cout << filename << endl;
+    fin.open(filename,ios::in);
+    //std::cout<< "open DONE\n";
+    string word;
+    int idx_x = 0;
+    int idx_y = 0;
+    while(std::getline(fin,line))
+    {
+        
+        //std::cout<< "getline 1 DONE\n";
+
+        stringstream strstream(line.substr(0,line.size()));
+        //std::cout<< "stringstream DONE "<<line<<"\n";
+        idx_y = 0;
+        while(std::getline(strstream,word,' '))
+        {
+            //std::cout<< "inside while "<<word<<" "<<idx_x<<" "<<idx_y<<"\n";
+            C[idx_x][idx_y][0] = std::stod(word);
+            //std::cout<< "done stod\n";
+            //if(C[idx_x][idx_y][0] > 0)
+            //    std::cout << C[idx_x][idx_y][0] << endl;
+            idx_y++;
+        }
+        idx_x++;
+    }
+    fin.close();
+    //std::cout<< "close DONE\n";
+
+}
 
 //Load a new file with Gas+Wind data
 void sim_obj::load_data_from_logfile(int sim_iteration)

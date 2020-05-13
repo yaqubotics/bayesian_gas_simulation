@@ -265,7 +265,7 @@ int main( int argc, char** argv )
     preprocessing_done  =false;
     ros::Subscriber sub = n.subscribe("preprocessing_done", 1, PreprocessingCB);
 
-
+    ros::Duration(10).sleep();
     // 1. ENVIRONMNET AS CAD MODELS
     //-------------------------------
     visualization_msgs::MarkerArray CAD_model_markers;

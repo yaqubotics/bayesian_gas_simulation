@@ -172,6 +172,11 @@ void printVectorFloat(std::string filename, std::vector<std::vector<float> > env
 }
 
 
+float eu_distance(float x, float y, float p, float q)
+{
+    return sqrt((x-p)*(x-p)+(y-q)*(y-q));
+}
+
 float sumDistanceRegion(vector<vector<int>> voronoi_map,int grid_x,int grid_y,int region_idx) 
 { 
     QItem source(0, 0, 0); 
@@ -209,7 +214,7 @@ float sumDistanceRegion(vector<vector<int>> voronoi_map,int grid_x,int grid_y,in
             q.push(QItem(p.row - 1, p.col, p.dist + 1)); 
             visited[p.row - 1][p.col] = true; 
             //map_distance[p.row-1][p.col] = p.dist+1;
-            sum++;
+            sum+=eu_distance(p.row-1,p.col,grid_x,grid_y);
         } 
 
         if (p.row - 1 >= 0 && p.col - 1 >= 0 && 
@@ -217,7 +222,7 @@ float sumDistanceRegion(vector<vector<int>> voronoi_map,int grid_x,int grid_y,in
             q.push(QItem(p.row - 1, p.col-1, p.dist + 1.4142)); 
             visited[p.row - 1][p.col-1] = true; 
             //map_distance[p.row-1][p.col-1] = p.dist+1.4142;
-            sum+=1.1412;
+            sum+=eu_distance(p.row-1,p.col-1,grid_x,grid_y);
         } 
   
         if (p.row - 1 >= 0 && p.col + 1 < map_height && 
@@ -225,7 +230,7 @@ float sumDistanceRegion(vector<vector<int>> voronoi_map,int grid_x,int grid_y,in
             q.push(QItem(p.row - 1, p.col+1, p.dist + 1.4142)); 
             visited[p.row - 1][p.col+1] = true; 
             //map_distance[p.row-1][p.col+1] = p.dist+1.4142;
-            sum+=1.1412;
+            sum+=eu_distance(p.row-1,p.col+1,grid_x,grid_y);
         } 
 
         // moving down 
@@ -234,7 +239,7 @@ float sumDistanceRegion(vector<vector<int>> voronoi_map,int grid_x,int grid_y,in
             q.push(QItem(p.row + 1, p.col, p.dist + 1)); 
             visited[p.row + 1][p.col] = true; 
             //map_distance[p.row+1][p.col] = p.dist+1;
-            sum++;
+            sum+=eu_distance(p.row+1,p.col,grid_x,grid_y);
         } 
 
         if (p.row + 1 < map_width && p.col - 1 >= 0 && 
@@ -242,7 +247,7 @@ float sumDistanceRegion(vector<vector<int>> voronoi_map,int grid_x,int grid_y,in
             q.push(QItem(p.row + 1, p.col-1, p.dist + 1.4142)); 
             visited[p.row + 1][p.col-1] = true; 
             //map_distance[p.row+1][p.col-1] = p.dist+1.4142;
-            sum+=1.1412;
+            sum+=eu_distance(p.row+1,p.col-1,grid_x,grid_y);
         } 
   
         if (p.row + 1 < map_width && p.col + 1 < map_height && 
@@ -250,7 +255,7 @@ float sumDistanceRegion(vector<vector<int>> voronoi_map,int grid_x,int grid_y,in
             q.push(QItem(p.row + 1, p.col+1, p.dist + 1.4142)); 
             visited[p.row + 1][p.col+1] = true; 
             //map_distance[p.row+1][p.col+1] = p.dist+1.4142;
-            sum+=1.1412;
+            sum+=eu_distance(p.row+1,p.col+1,grid_x,grid_y);
         } 
   
         // moving left 
@@ -259,7 +264,7 @@ float sumDistanceRegion(vector<vector<int>> voronoi_map,int grid_x,int grid_y,in
             q.push(QItem(p.row, p.col - 1, p.dist + 1)); 
             visited[p.row][p.col - 1] = true; 
             //map_distance[p.row][p.col-1] = p.dist+1;
-            sum++;
+            sum+=eu_distance(p.row,p.col-1,grid_x,grid_y);
         } 
   
          // moving right 
@@ -268,7 +273,7 @@ float sumDistanceRegion(vector<vector<int>> voronoi_map,int grid_x,int grid_y,in
             q.push(QItem(p.row, p.col + 1, p.dist + 1)); 
             visited[p.row][p.col + 1] = true; 
             //map_distance[p.row][p.col+1] = p.dist+1;
-            sum++;
+            sum+=eu_distance(p.row,p.col+1,grid_x,grid_y);
         } 
     } 
     return sum; 
@@ -369,10 +374,6 @@ vector<vector<float>> getMapDistance(vector<vector<int>> grid_map,int grid_x,int
     return map_distance; 
 } 
 
-float eu_distance(float x, float y, float p, float q)
-{
-    return sqrt((x-p)*(x-p)+(y-q)*(y-q));
-}
 int main(int argc, char **argv){
     ros::init(argc, argv, "preprocessing_voronoi");
     int numModels;
@@ -430,6 +431,7 @@ int main(int argc, char **argv){
         if((map_data[(int)rand_x][(int)rand_y] == 0) && (!coincidence_point))
         {
             point_of_region.markers.push_back(add_marker(rand_x*cell_size,rand_y*cell_size,idx,visualization_msgs::Marker::SPHERE,5.0,5.0,5.0,0,1,0));
+            pub_point_of_region.publish(point_of_region);
             vector<int> voronoi_grid;
             voronoi_grid_list.push_back(voronoi_grid);
             vector<int> point_temp;
@@ -443,151 +445,159 @@ int main(int argc, char **argv){
             cout << "obstruct\n";
         }
     }
-    vector<vector<vector<int>>> distance_map(num_of_region,vector<vector<int>>(map_width,vector<int>(map_height,-1)));
-    vector<vector<int>> voronoi_map_data(map_width,vector<int>(map_height,-1));
-    vector<vector<vector<float>>> all_region_distance(num_of_region,vector<vector<float>>(map_width,vector<float>(map_height,-1.0)));
+    int voronoi_iteration = 0;
+    while(true)
+    {
+        cout << "Voronoi iteration-"<<voronoi_iteration<<endl;
+        voronoi_iteration++;
+        visualization_msgs::MarkerArray point_of_region;
+        vector<vector<vector<int>>> distance_map(num_of_region,vector<vector<int>>(map_width,vector<int>(map_height,-1)));
+        vector<vector<int>> voronoi_map_data(map_width,vector<int>(map_height,-1));
+        vector<vector<vector<float>>> all_region_distance(num_of_region,vector<vector<float>>(map_width,vector<float>(map_height,-1.0)));
 
-    for(int a=0;a<num_of_region;a++)
-    {
-        all_region_distance[a] = getMapDistance(map_data,point_list[a][0],point_list[a][1]);
-    }
-    cout << "Distance Map Calculated\n";
-    vector<vector<float>> region_color(num_of_region,vector<float>(3,0.0));
-    for(int i=0;i<num_of_region;i++)
-    {
-        for(int j=0;j<3;j++)
+        for(int a=0;a<num_of_region;a++)
         {
-            region_color[i][j] = (float)(rand() % 255)/255.0;
+            all_region_distance[a] = getMapDistance(map_data,point_list[a][0],point_list[a][1]);
         }
-    }
-    visualization_msgs::MarkerArray voronoi_map;
-    visualization_msgs::MarkerArray voronoi_boundary;
-    int idx_voronoi_grid = 0;
-    for(int i=0;i<map_width;i++)
-    {
-        for(int j=0;j<map_height;j++)
+        cout << "Distance Map Calculated\n";
+        vector<vector<float>> region_color(num_of_region,vector<float>(3,0.0));
+        for(int i=0;i<num_of_region;i++)
         {
-            if(map_data[i][j] == 0)
+            for(int j=0;j<3;j++)
             {
-                // calculate shortest path
-                vector<float> distance_list;
-                for(int k=0;k<num_of_region;k++)
-                {
-                    //cout <<"point: ["<<point_list[k][0]<<" , "<<point_list[k][1]<<"]\n";
-                    //cout <<"grid distance: "<< grid_distance <<"\n";
-                    distance_list.push_back(all_region_distance[k][i][j]);
-                }
-                vector<float>::iterator minimum_region_idx = min_element(distance_list.begin(), distance_list.end());
-                int region_idx = distance(distance_list.begin(),minimum_region_idx);
-                //cout << "region idx "<<region_idx<<"\n";
-                voronoi_map_data[i][j] = region_idx;
-                voronoi_map.markers.push_back(add_marker(i*cell_size,j*cell_size,idx_voronoi_grid,visualization_msgs::Marker::CUBE,cell_size,cell_size,0.1,region_color[region_idx][0],region_color[region_idx][1],region_color[region_idx][2]));
-                
-                idx_voronoi_grid++;
+                region_color[i][j] = (float)(rand() % 255)/255.0;
             }
         }
-        cout<<"row-"<<i<<" done\n";
-        pub_voronoi_map.publish(voronoi_map);
-        pub_point_of_region.publish(point_of_region);
-    }
-    int boundary_cell_idx = 0;
-    for(int i=0;i<map_width;i++)
-    {
-        for(int j=0;j<map_height;j++)
-        {
-            if(map_data[i][j] == 0)
-            {
-                int r_idx = voronoi_map_data[i][j];
-
-                //bool b_1 = (voronoi_map_data[i][j] == r_idx);
-                bool b_1 = false;
-                if(j+1 < map_height)
-                {
-                    bool b_2 = (voronoi_map_data[i][j+1] != r_idx);
-                    b_1 = b_1 || b_2;
-                }
-                if((j-1 >= 0)&&(!b_1))
-                {
-                    bool b_3 = (voronoi_map_data[i][j-1] != r_idx);
-                    b_1 = b_1 || b_3;
-                }
-                if((i+1 < map_width)&&(!b_1))
-                {
-                    bool b_4 = (voronoi_map_data[i+1][j] != r_idx);
-                    b_1 = b_1 || b_4;
-                }
-                if(((i+1 < map_width) && (j+1 < map_height))&&(!b_1))
-                {
-                    bool b_5 = (voronoi_map_data[i+1][j+1] != r_idx);
-                    b_1 = b_1 || b_5;
-                }
-                if(((i+1 < map_width)&&(j-1 >= 0))&&(!b_1))
-                {
-                    bool b_6 = (voronoi_map_data[i+1][j-1] != r_idx);
-                    b_1 = b_1 || b_6;
-                }
-                if((i-1 >= 0)&&(!b_1))
-                {
-                    bool b_7 = (voronoi_map_data[i-1][j] != r_idx);
-                    b_1 = b_1 || b_7;
-                }
-                if(((i-1 >= 0)&&(j+1 < map_height))&&(!b_1))
-                {
-                    bool b_8 = (voronoi_map_data[i-1][j+1] != r_idx);
-                    b_1 = b_1 || b_8;
-                }
-                if(((i-1 >= 0)&&(j-1 >= 0))&&(!b_1))
-                {
-                    bool b_9 = (voronoi_map_data[i-1][j-1] != r_idx);
-                    b_1 = b_1 || b_9;
-                }
-                if(b_1)       
-                {         
-                    voronoi_boundary.markers.push_back(add_marker(i*cell_size,j*cell_size,boundary_cell_idx,visualization_msgs::Marker::CUBE,cell_size,cell_size,0.1,0.0,0.0,1.0));
-                    pub_voronoi_boundary.publish(voronoi_boundary);
-                    boundary_cell_idx++;
-                }
-            }
-        }
-    }
-    printVectorInt(boost::str(boost::format("%s/voronoi_grid.csv") % output.c_str()), voronoi_map_data);
-    printVectorFloat(boost::str(boost::format("%s/map0.csv") % output.c_str()), all_region_distance[0]);
-    printVectorFloat(boost::str(boost::format("%s/map1.csv") % output.c_str()), all_region_distance[1]);
-    printVectorFloat(boost::str(boost::format("%s/map2.csv") % output.c_str()), all_region_distance[2]);
-    printVectorInt(boost::str(boost::format("%s/voronoi_init_points.txt") % output.c_str()), point_list);
-    cout << "Voronoi Map Calculated\n";
-
-    for(int a=0;a< num_of_region;a++)
-    {
-        int min_distance = 2147483647;
-        int min_point_x;
-        int min_point_y;
+        visualization_msgs::MarkerArray voronoi_map;
+        visualization_msgs::MarkerArray voronoi_boundary;
+        int idx_voronoi_grid = 0;
         for(int i=0;i<map_width;i++)
         {
             for(int j=0;j<map_height;j++)
             {
-                if(voronoi_map_data[i][j] == a)
+                if(map_data[i][j] == 0)
                 {
-                    int distance = sumDistanceRegion(voronoi_map_data,i,j,a);
-                    if(distance < min_distance)
+                    // calculate shortest path
+                    vector<float> distance_list;
+                    for(int k=0;k<num_of_region;k++)
                     {
-                        min_distance = distance;
-                        min_point_x = i;
-                        min_point_y = j;
+                        //cout <<"point: ["<<point_list[k][0]<<" , "<<point_list[k][1]<<"]\n";
+                        //cout <<"grid distance: "<< grid_distance <<"\n";
+                        distance_list.push_back(all_region_distance[k][i][j]);
                     }
-                    cout << "[" <<a<<","<<i<<","<<j<<","<<distance<<","<<min_distance<<"]\n";
+                    vector<float>::iterator minimum_region_idx = min_element(distance_list.begin(), distance_list.end());
+                    int region_idx = distance(distance_list.begin(),minimum_region_idx);
+                    //cout << "region idx "<<region_idx<<"\n";
+                    voronoi_map_data[i][j] = region_idx;
+                    voronoi_map.markers.push_back(add_marker(i*cell_size,j*cell_size,idx_voronoi_grid,visualization_msgs::Marker::CUBE,cell_size,cell_size,0.1,region_color[region_idx][0],region_color[region_idx][1],region_color[region_idx][2]));
+                    
+                    idx_voronoi_grid++;
+                }
+            }
+            //cout<<"row-"<<i<<" done\n";
+            pub_voronoi_map.publish(voronoi_map);
+        }
+        /*
+        int boundary_cell_idx = 0;
+        for(int i=0;i<map_width;i++)
+        {
+            for(int j=0;j<map_height;j++)
+            {
+                if(map_data[i][j] == 0)
+                {
+                    int r_idx = voronoi_map_data[i][j];
+
+                    //bool b_1 = (voronoi_map_data[i][j] == r_idx);
+                    bool b_1 = false;
+                    if(j+1 < map_height)
+                    {
+                        bool b_2 = (voronoi_map_data[i][j+1] != r_idx);
+                        b_1 = b_1 || b_2;
+                    }
+                    if((j-1 >= 0)&&(!b_1))
+                    {
+                        bool b_3 = (voronoi_map_data[i][j-1] != r_idx);
+                        b_1 = b_1 || b_3;
+                    }
+                    if((i+1 < map_width)&&(!b_1))
+                    {
+                        bool b_4 = (voronoi_map_data[i+1][j] != r_idx);
+                        b_1 = b_1 || b_4;
+                    }
+                    if(((i+1 < map_width) && (j+1 < map_height))&&(!b_1))
+                    {
+                        bool b_5 = (voronoi_map_data[i+1][j+1] != r_idx);
+                        b_1 = b_1 || b_5;
+                    }
+                    if(((i+1 < map_width)&&(j-1 >= 0))&&(!b_1))
+                    {
+                        bool b_6 = (voronoi_map_data[i+1][j-1] != r_idx);
+                        b_1 = b_1 || b_6;
+                    }
+                    if((i-1 >= 0)&&(!b_1))
+                    {
+                        bool b_7 = (voronoi_map_data[i-1][j] != r_idx);
+                        b_1 = b_1 || b_7;
+                    }
+                    if(((i-1 >= 0)&&(j+1 < map_height))&&(!b_1))
+                    {
+                        bool b_8 = (voronoi_map_data[i-1][j+1] != r_idx);
+                        b_1 = b_1 || b_8;
+                    }
+                    if(((i-1 >= 0)&&(j-1 >= 0))&&(!b_1))
+                    {
+                        bool b_9 = (voronoi_map_data[i-1][j-1] != r_idx);
+                        b_1 = b_1 || b_9;
+                    }
+                    if(b_1)       
+                    {         
+                        voronoi_boundary.markers.push_back(add_marker(i*cell_size,j*cell_size,boundary_cell_idx,visualization_msgs::Marker::CUBE,cell_size,cell_size,0.1,0.0,0.0,1.0));
+                        pub_voronoi_boundary.publish(voronoi_boundary);
+                        boundary_cell_idx++;
+                    }
                 }
             }
         }
-        point_list[a][0] = min_point_x;
-        point_list[a][1] = min_point_y;
-        point_of_region_final.markers.push_back(add_marker(min_point_x*cell_size,min_point_y*cell_size,a,visualization_msgs::Marker::SPHERE,5.0,5.0,5.0,1,0,0));
-        pub_point_of_region_final.publish(point_of_region_final);
-        cout << "centroid-"<<a<<" done\n";
+        */
+        printVectorInt(boost::str(boost::format("%s/voronoi_grid.csv") % output.c_str()), voronoi_map_data);
+        printVectorFloat(boost::str(boost::format("%s/map0.csv") % output.c_str()), all_region_distance[0]);
+        printVectorFloat(boost::str(boost::format("%s/map1.csv") % output.c_str()), all_region_distance[1]);
+        printVectorFloat(boost::str(boost::format("%s/map2.csv") % output.c_str()), all_region_distance[2]);
+        printVectorInt(boost::str(boost::format("%s/voronoi_init_points.txt") % output.c_str()), point_list);
+        cout << "Voronoi Map Calculated\n";
 
+        for(int a=0;a< num_of_region;a++)
+        {
+            float min_distance = 2147483647;
+            int min_point_x;
+            int min_point_y;
+            for(int i=0;i<map_width;i++)
+            {
+                for(int j=0;j<map_height;j++)
+                {
+                    if(voronoi_map_data[i][j] == a)
+                    {
+                        float distance = sumDistanceRegion(voronoi_map_data,i,j,a);
+                        if(distance < min_distance)
+                        {
+                            min_distance = distance;
+                            min_point_x = i;
+                            min_point_y = j;
+                        }
+                        //cout << "[" <<a<<","<<i<<","<<j<<","<<distance<<","<<min_distance<<"]\n";
+                    }
+                }
+            }
+            point_list[a][0] = min_point_x;
+            point_list[a][1] = min_point_y;
+            point_of_region.markers.push_back(add_marker(min_point_x*cell_size,min_point_y*cell_size,a,visualization_msgs::Marker::SPHERE,5.0,5.0,5.0,1,0,0));
+            pub_point_of_region.publish(point_of_region);
+            //cout << "centroid-"<<a<<" done\n";
+
+        }
+        
+        printVectorInt(boost::str(boost::format("%s/voronoi_final_points.txt") % output.c_str()), point_list);
     }
-    
-    printVectorInt(boost::str(boost::format("%s/voronoi_final_points.txt") % output.c_str()), point_list);
     cout << "DONE ALL\n";
     while(ros::ok()){
         ros::Duration(0.2).sleep();

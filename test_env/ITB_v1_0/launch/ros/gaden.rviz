@@ -7,6 +7,7 @@ Panels:
         - /Global Map1/Planner1
         - /TF1/Frames1
         - /TF1/Tree1
+        - /Gas_Dispersion1
         - /MarkerArray1
       Splitter Ratio: 0.710594296
     Tree Height: 528
@@ -52,6 +53,14 @@ Visualization Manager:
       Plane Cell Count: 200
       Reference Frame: <Fixed Frame>
       Value: false
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /Gas_PDF_Distribution
+      Name: Gas PDF
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
     - Alpha: 0.699999988
       Class: rviz/Map
       Color Scheme: map
@@ -196,21 +205,21 @@ Visualization Manager:
       Use rainbow: false
       Value: false
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /filament_visualization
       Name: Filaments_Dispersion
       Namespaces:
         {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /Gas_Distribution
       Name: Gas_Dispersion
       Namespaces:
         {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Class: rviz/MarkerArray
       Enabled: false
       Marker Topic: /environment_cad_visualization
@@ -220,13 +229,13 @@ Visualization Manager:
       Queue Size: 100
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: true
+      Enabled: false
       Marker Topic: /environment_visualization
       Name: Occupancy3D
       Namespaces:
         {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /source_visualization
@@ -361,7 +370,7 @@ Visualization Manager:
       Marker Topic: /point_of_region
       Name: MarkerArray
       Namespaces:
-        basic_shapes: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -369,17 +378,17 @@ Visualization Manager:
       Marker Topic: /voronoi_map
       Name: MarkerArray
       Namespaces:
-        basic_shapes: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
-      Enabled: false
+      Enabled: true
       Marker Topic: /point_of_region_final
       Name: MarkerArray
       Namespaces:
         {}
       Queue Size: 100
-      Value: false
+      Value: true
     - Class: rviz/MarkerArray
       Enabled: false
       Marker Topic: /voronoi_boundary
@@ -412,7 +421,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 627.093262
+      Distance: 810.558289
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1

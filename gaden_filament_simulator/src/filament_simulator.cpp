@@ -40,9 +40,9 @@ CFilamentSimulator::CFilamentSimulator()
 	loadNodeParameters();
 
     //Create directory to save results (if needed)
-    if (save_results && !boost::filesystem::exists(results_location))
-       if (!boost::filesystem::create_directories(results_location))
-           ROS_ERROR("[filament] Could not create result directory: %s", results_location.c_str());
+    //if (save_results && !boost::filesystem::exists(results_location))
+    //   if (!boost::filesystem::create_directories(results_location))
+    //       ROS_ERROR("[filament] Could not create result directory: %s", results_location.c_str());
 
 	//Set Publishers and Subscribers
 	//-------------------------------
@@ -638,11 +638,13 @@ void CFilamentSimulator::write_to_csv()
 	{
 		for (size_t j=0; j<env_cells_y; j++)
 		{
-			myfile << C[i][j][2] << " "; // concentration
+			myfile << C[i][j][0] << " "; // concentration
 		}
 		myfile << "\n";
 	}
 	myfile.close();
+	last_saved_step++;
+
 }
 
 
@@ -1116,7 +1118,6 @@ void CFilamentSimulator::save_state_to_file()
 	std::ofstream fi(out_filename);
 	boost::iostreams::copy(inbuf,fi);
 
-
 	last_saved_step++;
 	delete[] charArray;
 }
@@ -1175,7 +1176,7 @@ int main(int argc, char **argv)
 		sim.update_gas_concentration_from_filaments();
 
 		//3. Publish markers for RVIZ
-		sim.publish_markers();
+		//sim.publish_markers();
 
 		//4. Update filament locations
 		sim.update_filaments_location();
@@ -1185,16 +1186,22 @@ int main(int argc, char **argv)
         {
             if ( floor(sim.sim_time/sim.results_time_step) != sim.last_saved_step )
             {
-			    sim.save_state_to_file();
+			    //sim.save_state_to_file();
             	
-				ros::Time iter_time_end = ros::Time::now();
-				ros::Duration iter_duration = iter_time_end - iter_time_begin;
-				ros::Duration iter_duration_total = iter_time_end - time_begin;
-				ROS_INFO("Iteration-%d spent time: %lf s, total: %f s", sim.current_simulation_step-1,iter_duration.toSec(),iter_duration_total.toSec());
-				iter_time_begin = ros::Time::now();
+				//ros::Time iter_time_end = ros::Time::now();
+				//ros::Duration iter_duration = iter_time_end - iter_time_begin;
+				//ros::Duration iter_duration_total = iter_time_end - time_begin;
+				//ROS_INFO("Iteration-%d spent time: %lf s, total: %f s", sim.current_simulation_step-1,iter_duration.toSec(),iter_duration_total.toSec());
+				//iter_time_begin = ros::Time::now();
 			}
 			if (sim.last_saved_step % sim.save_csv_every_iteration == 0)
 			{
+				ros::Time iter_time_end = ros::Time::now();
+				ros::Duration iter_duration = iter_time_end - iter_time_begin;
+				ros::Duration iter_duration_total = iter_time_end - time_begin;
+				ROS_INFO("[Save .csv] Iteration-%d spent time: %lf s, total: %f s", sim.current_simulation_step-1,iter_duration.toSec(),iter_duration_total.toSec());
+				iter_time_begin = ros::Time::now();
+				
 				sim.write_to_csv();
 			}
 	    }
